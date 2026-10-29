@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: beauty_wall_postgres
+    environment:
+      POSTGRES_DB: beautywall
+      POSTGRES_USER: beautywall
+      POSTGRES_PASSWORD: beautywall
+    ports:
+      - "55432:5432"
+    volumes:
+      - beauty_wall_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beautywall -d beautywall"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: beauty_wall_redis
+    volumes:
+      - beauty_wall_redisdata:/data
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: beauty_wall_license_api
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgresql://beautywall:beautywall@postgres:5432/beautywall?schema=public
+      REDIS_URL: redis://redis:6379
+      LICENSE_DEVICE_LIMIT: 3
+      PROJECT_CODE: beauty_wall
+      PROJECT_A_FORWARD_URL: https://qmpkhjlkvdcznkopryqf.supabase.co/functions/v1/afdian-webhook
+      AUTO_ISSUE_LICENSE_ON_PAID: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+volumes:
+  beauty_wall_pgdata:
+  beauty_wall_redisdata:

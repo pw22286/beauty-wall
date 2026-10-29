@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LicenseStatus {
+  ACTIVE
+  BLOCKED
+  EXPIRED
+}
+
+enum OrderStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PlanCode {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  LIFETIME
+}
+
+model License {
+  id            String         @id @default(cuid())
+  key           String         @unique
+  status        LicenseStatus  @default(ACTIVE)
+  maxDevices    Int            @default(3)
+  product       String         @default("pro")
+  expiresAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  activations   ActivationDevice[]
+  orders        Order[]
+}
+
+model PlanMapping {
+  id           String    @id @default(cuid())
+  planId       String    @unique
+  projectCode  String
+  planCode     PlanCode
+  durationDays Int?
+  maxDevices   Int       @default(3)
+  isActive     Boolean   @default(true)
+  forwardUrl   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model ActivationDevice {
+  id           String   @id @default(cuid())
+  licenseId    String
+  deviceId     String
+  deviceName   String?
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  license      License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@unique([licenseId, deviceId])
+  @@index([deviceId])
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  orderNo     String   @unique
+  channel     String
+  amount      Int
+  currency    String   @default("CNY")
+  status      OrderStatus @default(CREATED)
+  projectCode String?
+  planCode    PlanCode?
+  planId      String?
+  externalUserId String?
+  planTitle   String?
+  paidAt      DateTime?
+  licenseId   String?
+  forwardedAt DateTime?
+  forwardedTarget String?
+  forwardError String?
+  rawPayload  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  license     License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
